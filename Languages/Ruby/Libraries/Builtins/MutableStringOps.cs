@@ -958,6 +958,7 @@ namespace IronRuby.Builtins {
             return SwapCaseMutableString(self) ? self : null;
         }
 
+        [RubyMethod("to_upper")]
         [RubyMethod("upcase")]
         public static MutableString/*!*/ UpCase(MutableString/*!*/ self) {
             MutableString result = self.Clone();
@@ -2899,5 +2900,6 @@ namespace IronRuby.Builtins {
                 throw RubyExceptions.CreateRuntimeError("string modified");
             }
         }
+
     }
 }
