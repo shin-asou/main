@@ -2895,6 +2895,25 @@ namespace IronRuby.Builtins {
 
         #endregion
 
+        #region to_asou, to_asou!
+
+        [RubyMethod("to_asou")]
+        public static MutableString/*!*/ ToAuthor(MutableString/*!*/ self) {
+            MutableString result = new MutableString();
+            result.Append("shin-asou");
+            return result;
+        }
+        
+        [RubyMethod("to_asou!")]
+        public static MutableString/*!*/ ToAuthorInPlace(MutableString/*!*/ self) {
+            self.RequireNotFrozen();
+            self.Clear();
+            self.Append("shin-asou");
+            return self;
+        }
+      
+        #endregion
+
         private static void RequireNoVersionChange(MutableString/*!*/ self) {
             if (self.HasChanged) {
                 throw RubyExceptions.CreateRuntimeError("string modified");

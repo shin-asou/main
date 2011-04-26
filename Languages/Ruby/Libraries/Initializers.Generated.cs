@@ -7007,6 +7007,16 @@ namespace IronRuby.Builtins {
                 new Func<IronRuby.Builtins.MutableString, IronRuby.Builtins.MutableString>(IronRuby.Builtins.MutableStringOps.SwapCaseInPlace)
             );
             
+            DefineLibraryMethod(module, "to_asou", 0x51, 
+                0x00000000U, 
+                new Func<IronRuby.Builtins.MutableString, IronRuby.Builtins.MutableString>(IronRuby.Builtins.MutableStringOps.ToAuthor)
+            );
+            
+            DefineLibraryMethod(module, "to_asou!", 0x51, 
+                0x00000000U, 
+                new Func<IronRuby.Builtins.MutableString, IronRuby.Builtins.MutableString>(IronRuby.Builtins.MutableStringOps.ToAuthorInPlace)
+            );
+            
             DefineLibraryMethod(module, "to_clr_string", 0x51, 
                 0x00000000U, 
                 new Func<IronRuby.Builtins.MutableString, System.String>(IronRuby.Builtins.MutableStringOps.ToClrString)
