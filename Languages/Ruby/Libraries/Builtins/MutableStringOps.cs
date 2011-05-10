@@ -300,7 +300,7 @@ namespace IronRuby.Builtins {
                         _rangeStarted = false;
                     } else {
                         int p = PeekChar();
-                        if (p == '-') {
+                        if (p == '-' && c != '\\') {
                             // z- is treated as a literal 'z', '-'
                             if (_pos == _range.Length - 1) {
                                 result.Set(c, !negate);
