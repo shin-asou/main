@@ -37,6 +37,7 @@ describe "String#delete" do
     "hello".delete("^e-h").should == "he"
     "hello^".delete("^^-^").should == "^"
     "hel--lo".delete("^---").should == "--"
+	"he-lo".delete('\-\'').should == "helo"
 
     "abcdefgh".delete("a-ce-fh").should == "dg"
     "abcdefgh".delete("he-fa-c").should == "dg"
