@@ -1,7 +1,6 @@
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe "The -S command line option" do
-
   def push_path(dir)
     ENV['PATH'] = "#{dir};#{ENV['PATH']}"
   end
@@ -24,18 +23,6 @@ describe "The -S command line option" do
     with_path(fixture_dir) do
       dash_s = ruby_exe(nil, :options => '-S file.rb')
     end
-
-    expected = ruby_exe("#{fixture_dir}/file.rb")
-    failed_dash_s = ruby_exe(nil, :args => "-S #{this_dir}/file.rb 2>&1")
-
-    dash_s.should == expected
-    dash_s.should_not == failed_dash_s
-  end
-
-  it 'does not find the file on the path' do
-    dash_s = ruby_exe(nil, :args => '-S does/not/exist.rb 2>&1')
-    normal = ruby_exe(nil, :args => 'does/not/exist.rb 2>&1')
-    dash_s.should == normal
   end
 
   it 'finds the first file on the path' do
@@ -58,5 +45,4 @@ describe "The -S command line option" do
       actual.should == File.expand_path(expected[i] + '/file.rb')
     end
   end
-
 end
