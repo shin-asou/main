@@ -941,6 +941,10 @@ namespace IronRuby.Builtins {
                         dateTimeFormat = "mm";
                         break;
 
+                    case 'N':
+                        dateTimeFormat = "fffffff00";
+                        break;
+
                     case 'p':
                         dateTimeFormat = "tt";
                         break;
@@ -994,11 +998,9 @@ namespace IronRuby.Builtins {
                         break;
 
                     default:
-                        if (context.RubyOptions.Compatibility > RubyCompatibility.Ruby186) {
-                            result.Append(character);
-                            break;
-                        } 
-                        return MutableString.CreateEmpty();
+                        result.Append('%');
+                        result.Append(character);
+                        break;
                 }
 
                 if (dateTimeFormat != null) {
