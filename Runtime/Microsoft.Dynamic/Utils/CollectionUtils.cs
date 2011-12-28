@@ -76,7 +76,11 @@ namespace Microsoft.Scripting.Utils {
 
         public static IEnumerable<TSuper> ToCovariant<T, TSuper>(IEnumerable<T> enumerable)
             where T : TSuper {
+#if CLR2
             return new CovariantConvertor<T, TSuper>(enumerable);
+#else
+            return (IEnumerable<TSuper>)enumerable;
+#endif
         }
 
         private class CovariantConvertor<T, TSuper> : IEnumerable<TSuper> where T : TSuper {
@@ -95,6 +99,42 @@ namespace Microsoft.Scripting.Utils {
             [Pure]
             IEnumerator IEnumerable.GetEnumerator() {
                 return GetEnumerator();
+            }
+        }
+
+        public static IDictionaryEnumerator ToDictionaryEnumerator(IEnumerator<KeyValuePair<object, object>> enumerator) {
+            return new DictionaryEnumerator(enumerator);
+        }
+
+        private sealed class DictionaryEnumerator : IDictionaryEnumerator {
+            private readonly IEnumerator<KeyValuePair<object, object>> _enumerator;
+
+            public DictionaryEnumerator(IEnumerator<KeyValuePair<object, object>> enumerator) {
+                _enumerator = enumerator;
+            }
+
+            public DictionaryEntry Entry {
+                get { return new DictionaryEntry(_enumerator.Current.Key, _enumerator.Current.Value); }
+            }
+
+            public object Key {
+                get { return _enumerator.Current.Key; }
+            }
+
+            public object Value {
+                get { return _enumerator.Current.Value; }
+            }
+
+            public object Current {
+                get { return Entry; }
+            }
+
+            public bool MoveNext() {
+                return _enumerator.MoveNext();
+            }
+
+            public void Reset() {
+                _enumerator.Reset();
             }
         }
 
