@@ -22,15 +22,16 @@ using System.Text;
 
 using Microsoft.Scripting;
 using Microsoft.Scripting.Runtime;
+using Microsoft.Scripting.Utils;
 
 using IronPython.Runtime;
 using IronPython.Runtime.Operations;
 using IronPython.Runtime.Types;
 
-#if CLR2
-using Microsoft.Scripting.Math;
-#else
+#if FEATURE_NUMERICS
 using System.Numerics;
+#else
+using Microsoft.Scripting.Math;
 #endif
 
 [assembly: PythonModule("datetime", typeof(IronPython.Modules.PythonDateTime))]
@@ -204,6 +205,11 @@ namespace IronPython.Modules {
             [SpecialName]
             public timedelta ReverseFloorDivide(int y) {
                 return this / y;
+            }
+
+            public double total_seconds() {
+                var total_microseconds = (double) this.microseconds + (this.seconds + this.days * 24.0 * 3600.0) * 1000000.0;
+                return total_microseconds / 1000000.0;
             }
 
             public bool __nonzero__() {
@@ -561,10 +567,9 @@ namespace IronPython.Modules {
 
             public override bool Equals(object obj) {
                 if (obj == null) return false;
-
-                Type t = obj.GetType();
-                if (t == typeof(date) || t == typeof(datetime)) {
-                    date other = (date)obj;
+                
+                date other = obj as date;
+                if (other != null && !(obj is datetime)) {
                     return this._dateTime == other._dateTime;
                 } else {
                     return false;
@@ -669,7 +674,11 @@ namespace IronPython.Modules {
             }
 
             public virtual string __format__(CodeContext/*!*/ context, string dateFormat){
-                return this.strftime(context, dateFormat);
+                if (string.IsNullOrEmpty(dateFormat)) {
+                    return PythonOps.ToString(context, this);
+                } else {
+                    return this.strftime(context, dateFormat);
+                }
             }
 
             #endregion
@@ -1085,7 +1094,8 @@ namespace IronPython.Modules {
                         InternalDateTime.Hour,
                         InternalDateTime.Minute,
                         InternalDateTime.Second,
-                        InternalDateTime.Millisecond * 1000 + _lostMicroseconds
+                        this.microsecond,
+                        this.tzinfo
                     )
                 );
             }
@@ -1265,6 +1275,19 @@ namespace IronPython.Modules {
             // supported operations
             private static time Add(time date, timedelta delta) {
                 return new time(date._timeSpan.Add(delta.TimeSpanWithDaysAndSeconds), delta._microseconds + date._lostMicroseconds, date._tz);
+            }
+
+            public PythonTuple __reduce__() {
+                return PythonTuple.MakeTuple(
+                    DynamicHelpers.GetPythonTypeFromType(GetType()),
+                    PythonTuple.MakeTuple(
+                        this.hour,
+                        this.minute,
+                        this.second,
+                        this.microsecond,
+                        this.tzinfo
+                    )
+                );
             }
 
             public bool __nonzero__() {

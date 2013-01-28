@@ -55,7 +55,7 @@ namespace IronPython.Modules {
         public static readonly PythonTuple tzname;
         public const bool accept2dyear = true;
 
-#if !SILVERLIGHT    // System.Diagnostics.Stopwatch
+#if FEATURE_STOPWATCH    // System.Diagnostics.Stopwatch
         [MultiRuntimeAware]
         private static Stopwatch sw;
 #endif
@@ -72,7 +72,7 @@ namespace IronPython.Modules {
 
             // altzone, timezone are offsets from UTC in seconds, so they always fit in the
             // -13*3600 to 13*3600 range and are safe to cast to ints
-#if !SILVERLIGHT
+#if FEATURE_TIMEZONE
             DaylightTime dayTime = TimeZone.CurrentTimeZone.GetDaylightChanges(DateTime.Now.Year);
             daylight = (dayTime.Start == dayTime.End && dayTime.Start == DateTime.MinValue && dayTime.Delta.Ticks == 0) ? 0 : 1;
 
@@ -123,7 +123,7 @@ namespace IronPython.Modules {
         }
 
         public static double clock() {
-#if !SILVERLIGHT    // System.Diagnostics.Stopwatch
+#if FEATURE_STOPWATCH    // System.Diagnostics.Stopwatch
             InitStopWatch();
             return ((double)sw.ElapsedTicks) / Stopwatch.Frequency;
 #else
@@ -307,7 +307,7 @@ namespace IronPython.Modules {
         }
 
         private static DateTime RemoveDst(DateTime dt, bool always) {
-#if !SILVERLIGHT
+#if FEATURE_TIMEZONE
             DaylightTime dayTime = TimeZone.CurrentTimeZone.GetDaylightChanges(dt.Year);
             if (always || (dt > dayTime.Start && dt < dayTime.End)) {
                 dt -= dayTime.Delta;
@@ -321,7 +321,7 @@ namespace IronPython.Modules {
         }
 
         private static DateTime AddDst(DateTime dt) {
-#if !SILVERLIGHT
+#if FEATURE_TIMEZONE
             DaylightTime dayTime = TimeZone.CurrentTimeZone.GetDaylightChanges(dt.Year);
             if (dt > dayTime.Start && dt < dayTime.End) {
                 dt += dayTime.Delta;
@@ -605,7 +605,7 @@ namespace IronPython.Modules {
             return -1;
         }
 
-#if !SILVERLIGHT    // Stopwatch
+#if FEATURE_STOPWATCH    // Stopwatch
         private static void InitStopWatch() {
             if (sw == null) {
                 sw = new Stopwatch();
@@ -644,6 +644,17 @@ namespace IronPython.Modules {
             }
             public object tm_isdst {
                 get { return _data[8]; }
+            }
+            public int n_fields {
+                get { return _data.Length; }
+            }
+
+            public int n_sequence_fields {
+                get { return _data.Length; }
+            }
+
+            public int n_unnamed_fields {
+                get { return 0; }
             }
 
             internal struct_time(int year, int month, int day, int hour, int minute, int second, int dayOfWeek, int dayOfYear, int isDst)
@@ -690,6 +701,17 @@ namespace IronPython.Modules {
 
             public static object __getnewargs__(CodeContext context, int year, int month, int day, int hour, int minute, int second, int dayOfWeek, int dayOfYear, int isDst) {
                 return PythonTuple.MakeTuple(struct_time.__new__(context, _StructTimeType, year, month, day, hour, minute, second, dayOfWeek, dayOfYear, isDst));
+            }
+
+            public override string ToString() {
+                return string.Format(
+                    "time.struct_time(tm_year={0}, tm_mon={1}, tm_mday={2}, tm_hour={3}, tm_min={4}, tm_sec={5}, tm_wday={6}, tm_yday={7}, tm_isdst={8})",
+                    //this.tm_year, this.tm_mon, this.tm_mday, this.tm_hour, this.tm_min, this.tm_sec, this.tm_wday, this.tm_yday, this.tm_isdst
+                    _data);
+            }
+
+            public override string __repr__(CodeContext context) {
+                return this.ToString();
             }
         }
     }

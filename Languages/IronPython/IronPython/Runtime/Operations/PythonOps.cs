@@ -13,7 +13,7 @@
  *
  * ***************************************************************************/
 
-#if !CLR2
+#if FEATURE_CORE_DLR
 using System.Linq.Expressions;
 using System.Numerics;
 using Microsoft.Scripting.Ast;
@@ -26,6 +26,7 @@ using Complex = Microsoft.Scripting.Math.Complex64;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Dynamic;
 using System.IO;
@@ -50,10 +51,6 @@ using IronPython.Modules;
 using IronPython.Runtime.Binding;
 using IronPython.Runtime.Exceptions;
 using IronPython.Runtime.Types;
-
-#if !SILVERLIGHT
-using System.ComponentModel;
-#endif
 
 namespace IronPython.Runtime.Operations {
 
@@ -1108,7 +1105,7 @@ namespace IronPython.Runtime.Operations {
 
             List res = DynamicHelpers.GetPythonType(o).GetMemberNames(context, o);
 
-#if !SILVERLIGHT
+#if FEATURE_COM
 
             if (o != null && Microsoft.Scripting.ComInterop.ComBinder.IsComObject(o)) {
                 foreach (string name in Microsoft.Scripting.ComInterop.ComBinder.GetDynamicMemberNames(o)) {
@@ -1735,7 +1732,7 @@ namespace IronPython.Runtime.Operations {
             pc.CallWithContext(context, dispHook, value);
         }
 
-#if !SILVERLIGHT
+#if FEATURE_FULL_CONSOLE
         public static void PrintException(CodeContext/*!*/ context, Exception/*!*/ exception, IConsole console) {
             PythonContext pc = PythonContext.GetContext(context);
             PythonTuple exInfo = GetExceptionInfoLocal(context, exception);
@@ -1834,8 +1831,8 @@ namespace IronPython.Runtime.Operations {
             PythonType pt = newmod as PythonType;
 
             if (pt != null &&
-                !pt.UnderlyingSystemType.IsEnum &&
-                (!pt.UnderlyingSystemType.IsAbstract || !pt.UnderlyingSystemType.IsSealed)) {
+                !pt.UnderlyingSystemType.IsEnum() &&
+                (!pt.UnderlyingSystemType.IsAbstract() || !pt.UnderlyingSystemType.IsSealed())) {
                 // from type import * only allowed on static classes (and enums)
                 throw PythonOps.ImportError("no module named {0}", pt.Name);
             }
@@ -2127,7 +2124,7 @@ namespace IronPython.Runtime.Operations {
             // we reset the abort.
             object res = PythonExceptions.ToPython(clrException);
 
-#if !SILVERLIGHT
+#if FEATURE_EXCEPTION_STATE
             // Check for thread abort exceptions.
             // This is necessary to be able to catch python's KeyboardInterrupt exceptions.
             // CLR restrictions require that this must be called from within a catch block.  This gets
@@ -2242,7 +2239,7 @@ namespace IronPython.Runtime.Operations {
                 }
 
                 PythonDynamicStackFrame pyFrame = frame as PythonDynamicStackFrame;
-                if (pyFrame != null) {
+                if (pyFrame != null && pyFrame.CodeContext != null) {
                     CodeContext context = pyFrame.CodeContext;
                     FunctionCode code = pyFrame.Code;
 
@@ -3653,6 +3650,7 @@ namespace IronPython.Runtime.Operations {
             return PythonContext.GetContext(context).DeleteSlice;
         }
 
+#if FEATURE_REFEMIT
         /// <summary>
         /// Provides access to AppDomain.DefineDynamicAssembly which cannot be called from a DynamicMethod
         /// </summary>
@@ -3699,16 +3697,36 @@ namespace IronPython.Runtime.Operations {
         /// the exit code that the program reported via SystemExit or 0.
         /// </summary>
         public static int InitializeModule(Assembly/*!*/ precompiled, string/*!*/ main, string[] references) {
+            return InitializeModuleEx(precompiled, main, references, false);
+        }
+
+        /// <summary>
+        /// Provides the entry point for a compiled module.  The stub exe calls into InitializeModule which
+        /// does the actual work of adding references and importing the main module.  Upon completion it returns
+        /// the exit code that the program reported via SystemExit or 0.
+        /// </summary>
+        public static int InitializeModuleEx(Assembly/*!*/ precompiled, string/*!*/ main, string[] references, bool ignoreEnvVars) {
             ContractUtils.RequiresNotNull(precompiled, "precompiled");
             ContractUtils.RequiresNotNull(main, "main");
 
             Dictionary<string, object> options = new Dictionary<string, object>();
-            options["Arguments"] = ArrayUtils.RemoveFirst(Environment.GetCommandLineArgs()); // remove the EXE
+            options["Arguments"] = Environment.GetCommandLineArgs();
 
             var pythonEngine = Python.CreateEngine(options);
 
             var pythonContext = (PythonContext)HostingHelpers.GetLanguageContext(pythonEngine);
 
+            if (!ignoreEnvVars) {
+                int pathIndex = pythonContext.PythonOptions.SearchPaths.Count;
+                string path = Environment.GetEnvironmentVariable("IRONPYTHONPATH");
+                if (path != null && path.Length > 0) {
+                    string[] paths = path.Split(Path.PathSeparator);
+                    foreach (string p in paths) {
+                        pythonContext.InsertIntoPath(pathIndex++, p);
+                    }
+                }
+                // TODO: add more environment variable setup here...
+            }
 
             foreach (var scriptCode in SavableScriptCode.LoadFromAssembly(pythonContext.DomainManager, precompiled)) {
                 pythonContext.GetCompiledLoader().AddScriptCode(scriptCode);
@@ -3731,6 +3749,7 @@ namespace IronPython.Runtime.Operations {
 
             return 0;
         }
+#endif
 #endif
 
         public static CodeContext GetPythonTypeContext(PythonType pt) {
@@ -4087,7 +4106,7 @@ namespace IronPython.Runtime.Operations {
             return new System.OverflowException(string.Format(format, args));
         }
         public static Exception WindowsError(string format, params object[] args) {
-#if !SILVERLIGHT // System.ComponentModel.Win32Exception
+#if FEATURE_WIN32EXCEPTION // System.ComponentModel.Win32Exception
             return new System.ComponentModel.Win32Exception(string.Format(format, args));
 #else
             return new System.SystemException(string.Format(format, args));

@@ -33,17 +33,18 @@ using IronPython.Runtime.Exceptions;
 using IronPython.Runtime.Operations;
 using IronPython.Runtime.Types;
 
-#if CLR2
-using Microsoft.Scripting.Math;
-#else
+#if FEATURE_NUMERICS
 using System.Numerics;
+#else
+using Microsoft.Scripting.Math;
 #endif
 
 [assembly: PythonModule("nt", typeof(IronPython.Modules.PythonNT))]
 namespace IronPython.Modules {
     public static class PythonNT {
         public const string __doc__ = "Provides low-level operationg system access for files, the environment, etc...";
-#if !SILVERLIGHT
+
+#if FEATURE_PROCESS
         private static Dictionary<int, Process> _processToIdMapping = new Dictionary<int, Process>();
         private static List<int> _freeProcessIds = new List<int>();
         private static int _processCount;
@@ -51,7 +52,7 @@ namespace IronPython.Modules {
 
         #region Public API Surface
 
-#if !SILVERLIGHT // FailFast
+#if FEATURE_PROCESS
         public static void abort() {            
             System.Environment.FailFast("IronPython os.abort");
         }
@@ -68,9 +69,9 @@ namespace IronPython.Modules {
 
             if (mode == F_OK) {
                 return context.LanguageContext.DomainManager.Platform.FileExists(path) ||
-			context.LanguageContext.DomainManager.Platform.DirectoryExists(path);
+            context.LanguageContext.DomainManager.Platform.DirectoryExists(path);
             }
-#if !SILVERLIGHT
+#if FEATURE_FILESYSTEM
             // match the behavior of the VC C Runtime
             FileAttributes fa = File.GetAttributes(path);
             if ((fa & FileAttributes.Directory) != 0) {
@@ -89,7 +90,7 @@ namespace IronPython.Modules {
 #endif
         }
 
-#if !SILVERLIGHT // SetCurrentDirectory, FileInfo
+#if FEATURE_FILESYSTEM
         public static void chdir([NotNull]string path) {
             if (String.IsNullOrEmpty(path)) {
                 throw PythonExceptions.CreateThrowable(WindowsError, PythonExceptions._WindowsError.ERROR_INVALID_NAME, "Path cannot be an empty string");
@@ -103,11 +104,15 @@ namespace IronPython.Modules {
         }
 
         public static void chmod(string path, int mode) {
-            FileInfo fi = new FileInfo(path);
-            if ((mode & S_IWRITE) != 0) {
-                fi.Attributes &= ~(FileAttributes.ReadOnly);
-            } else {
-                fi.Attributes |= FileAttributes.ReadOnly;
+            try {
+                FileInfo fi = new FileInfo(path);
+                if ((mode & S_IWRITE) != 0) {
+                    fi.Attributes &= ~(FileAttributes.ReadOnly);
+                } else {
+                    fi.Attributes |= FileAttributes.ReadOnly;
+                }
+            } catch (Exception e) {
+                throw ToPythonException(e, path);
             }
         }
 #endif
@@ -127,7 +132,7 @@ namespace IronPython.Modules {
             }
         }
         
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         /// <summary>
         /// single instance of environment dictionary is shared between multiple runtimes because the environment
         /// is shared by multiple runtimes.
@@ -248,7 +253,7 @@ namespace IronPython.Modules {
                 Environment.OSVersion.Platform == PlatformID.Win32Windows;
         }
 
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         public static int getpid() {
             return System.Diagnostics.Process.GetCurrentProcess().Id;
         }
@@ -283,7 +288,7 @@ namespace IronPython.Modules {
             return stat(path);
         }
 
-#if !SILVERLIGHT
+#if FEATURE_FILESYSTEM
         public static void mkdir(string path) {
             if (Directory.Exists(path))
                 throw DirectoryExists();
@@ -359,7 +364,9 @@ namespace IronPython.Modules {
 
             return res;
         }
+#endif
 
+#if FEATURE_PROCESS
         public static PythonTuple pipe(CodeContext context) {
             IntPtr hRead, hWrite;
 
@@ -493,12 +500,6 @@ namespace IronPython.Modules {
             }
         }
 
-#if !SILVERLIGHT
-        public static void remove(string path) {
-            UnlinkWorker(path);
-        }
-#endif
-
         public static void rename(string src, string dst) {
             try {
                 Directory.Move(src, dst);
@@ -515,7 +516,7 @@ namespace IronPython.Modules {
             }
         }
 
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         /// <summary>
         /// spawns a new process.
         /// 
@@ -695,7 +696,7 @@ namespace IronPython.Modules {
             return sb.ToString();
         }
 
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         public static void startfile(string filename, [DefaultParameterValue("open")]string operation) {
             System.Diagnostics.Process process = new System.Diagnostics.Process();
             process.StartInfo.FileName = filename;
@@ -1247,7 +1248,7 @@ namespace IronPython.Modules {
             }
         }
 
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         [Documentation("system(command) -> int\nExecute the command (a string) in a subshell.")]
         public static int system(string command) {
             ProcessStartInfo psi = GetProcessInfo(command);
@@ -1264,7 +1265,9 @@ namespace IronPython.Modules {
                 return 1;
             }
         }
+#endif
 
+#if FEATURE_FILESYSTEM
         public static string tempnam(CodeContext/*!*/ context) {
             return tempnam(context, null);
         }
@@ -1294,9 +1297,7 @@ namespace IronPython.Modules {
                 0,  // child process os time
                 DateTime.Now.Subtract(p.StartTime).TotalSeconds);
         }
-#endif
 
-#if !SILVERLIGHT
         public static PythonFile/*!*/ tmpfile(CodeContext/*!*/ context) {
             try {
                 FileStream sw = new FileStream(Path.GetTempFileName(), FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose);
@@ -1311,6 +1312,10 @@ namespace IronPython.Modules {
         public static string/*!*/ tmpnam(CodeContext/*!*/ context) {
             PythonOps.Warn(context, PythonExceptions.RuntimeWarning, "tmpnam is a potential security risk to your program");
             return Path.GetFullPath(Path.GetTempPath() + Path.GetRandomFileName());
+        }
+
+        public static void remove(string path) {
+            UnlinkWorker(path);
         }
 
         public static void unlink(string path) {
@@ -1332,7 +1337,9 @@ namespace IronPython.Modules {
                 throw ToPythonException(e, path);
             }
         }
+#endif
 
+#if FEATURE_PROCESS
         public static void unsetenv(string varname) {
             System.Environment.SetEnvironmentVariable(varname, null);
         }
@@ -1366,10 +1373,12 @@ namespace IronPython.Modules {
             }
         }
 
-#if !SILVERLIGHT
+#if FEATURE_FILESYSTEM
         public static void utime(string path, PythonTuple times) {
             try {
-                FileInfo fi = new FileInfo(path);
+                // Create a DirectoryInfo or FileInfo depending on what it is
+                // Changing the times of a directory does not work with a FileInfo and v.v.
+                FileSystemInfo fi = Directory.Exists(path) ? new DirectoryInfo(path) : (FileSystemInfo)new FileInfo(path);
                 if (times == null) {
                     fi.LastAccessTime = DateTime.Now;
                     fi.LastWriteTime = DateTime.Now;
@@ -1386,7 +1395,9 @@ namespace IronPython.Modules {
                 throw ToPythonException(e, path);
             }
         }
+#endif
 
+#if FEATURE_PROCESS
         public static PythonTuple waitpid(int pid, object options) {
             Process process;
             lock (_processToIdMapping) {
@@ -1419,29 +1430,10 @@ namespace IronPython.Modules {
             }
         }
 
-#if !SILVERLIGHT
+#if FEATURE_PROCESS
         [Documentation(@"Send signal sig to the process pid. Constants for the specific signals available on the host platform 
 are defined in the signal module.")]
         public static void kill(CodeContext/*!*/ context, int pid, int sig) {
-            
-            //The following calls to GenerateConsoleCtrlEvent will fail under
-            //most circumstances. We'll try them any ways though as this seems
-            //to be the only mechanism in Windows to send signals to processes
-            switch (sig) {
-                case PythonSignal.SIGINT:
-                    if (NativeSignal.GenerateConsoleCtrlEvent(PythonSignal.CTRL_C_EVENT, (uint)pid)!= false) {
-                        return;
-                    }
-                    break;
-                case PythonSignal.SIGBREAK:
-                    if (NativeSignal.GenerateConsoleCtrlEvent(PythonSignal.CTRL_BREAK_EVENT, (uint)pid) != false) {
-                        return;
-                    }
-                    break;
-                default:
-                    throw PythonOps.ValueError("signal number out of range");
-            }
-            
             //If the calls to GenerateConsoleCtrlEvent didn't work, simply
             //forcefully kill the process.
             Process toKill = Process.GetProcessById(pid);
@@ -1498,11 +1490,10 @@ are defined in the signal module.")]
                 // rethrow reasonable exceptions
                 return ExceptionHelpers.UpdateForRethrow(e);
             }
-#if !SILVERLIGHT
+            
             int error = Marshal.GetLastWin32Error();
-#endif
             string message = e.Message;
-            int errorCode;
+            int errorCode = 0;
 
             bool isWindowsError = false;
             Win32Exception winExcep = e as Win32Exception;
@@ -1522,7 +1513,6 @@ are defined in the signal module.")]
                     }
                 }
 
-#if !SILVERLIGHT
                 IOException ioe = e as IOException;
                 if (ioe != null) {
                     switch (error) {
@@ -1534,8 +1524,8 @@ are defined in the signal module.")]
                             throw PythonExceptions.CreateThrowable(WindowsError, error, "The process cannot access the file because it is being used by another process");
                     }
                 }
-#endif
 
+#if !SILVERLIGHT5
                 errorCode = System.Runtime.InteropServices.Marshal.GetHRForException(e);
                 if ((errorCode & ~0xfff) == (unchecked((int)0x80070000))) {
                     // Win32 HR, translate HR to Python error code if possible, otherwise
@@ -1544,6 +1534,7 @@ are defined in the signal module.")]
                     message = GetFormattedException(e, errorCode);
                     isWindowsError = true;
                 }
+#endif
             }
 
             if (isWindowsError) {
@@ -1595,7 +1586,8 @@ are defined in the signal module.")]
 
             return FileAccess.Read;
         }
-#if !SILVERLIGHT // Processes
+
+#if FEATURE_PROCESS
         [PythonType]
         private class POpenFile : PythonFile {
             private Process _process;
@@ -1694,11 +1686,11 @@ are defined in the signal module.")]
             }
             return true;
         }
-
+#endif
+        
         private static Exception DirectoryExists() {
             return PythonExceptions.CreateThrowable(WindowsError, PythonExceptions._WindowsError.ERROR_ALREADY_EXISTS, "directory already exists");
         }
-#endif
 
         #endregion
     }

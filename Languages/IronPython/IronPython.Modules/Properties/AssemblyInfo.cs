@@ -45,12 +45,14 @@ using System.Security;
 // You can specify all the values or you can default the Revision and Build Numbers 
 // by using the '*' as shown below:
 
+#if !WIN8
 [assembly: SecurityTransparent]
+#endif
 
-#if !SILVERLIGHT
+#if FEATURE_APTCA
 [assembly: AllowPartiallyTrustedCallers]
-#if !CLR2
+#endif
+
+#if FEATURE_SECURITY_RULES
 [assembly: SecurityRules(SecurityRuleSet.Level1)]
 #endif
-#endif
-

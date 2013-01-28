@@ -871,8 +871,9 @@ def _namespaces(elem, encoding, default_namespace=None):
         iterate = elem.getiterator # cET compatibility
     for elem in iterate():
         tag = elem.tag
-        if isinstance(tag, QName) and tag.text not in qnames:
-            add_qname(tag.text)
+        if isinstance(tag, QName):
+            if tag.text not in qnames:
+                add_qname(tag.text)
         elif isinstance(tag, basestring):
             if tag not in qnames:
                 add_qname(tag)
@@ -1188,6 +1189,9 @@ def parse(source, parser=None):
 # @return A (event, elem) iterator.
 
 def iterparse(source, events=None, parser=None):
+    if sys.platform == 'cli':
+        raise NotImplementedError('iterparse is not supported on IronPython. (CP #31923)')
+
     if not hasattr(source, "read"):
         source = open(source, "rb")
     if not parser:

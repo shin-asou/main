@@ -15,7 +15,6 @@
 
 using System.Diagnostics;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using IronRuby.Compiler.Generation;
 using IronRuby.Runtime;
 using IronRuby.Runtime.Calls;
@@ -70,7 +69,7 @@ namespace IronRuby.Builtins {
         #region ToString, Equals, GetHashCode
 
         public override string/*!*/ ToString() {
-#if DEBUG && !SILVERLIGHT && CLR2
+#if DEBUG && FEATURE_FULL_CONSOLE
             if (RubyBinder._DumpingExpression) {
                 return RubyUtils.ObjectBaseToMutableString(this).ToString();
             }
@@ -168,7 +167,7 @@ namespace IronRuby.Builtins {
 
         #region Serialization
 
-#if !SILVERLIGHT // serialization
+#if FEATURE_SERIALIZATION
         protected RubyObject(SerializationInfo/*!*/ info, StreamingContext context) {
             RubyOps.DeserializeObject(out _instanceData, out _immediateClass, info);
         }

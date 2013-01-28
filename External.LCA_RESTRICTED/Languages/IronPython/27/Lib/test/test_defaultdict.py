@@ -150,7 +150,7 @@ class TestDefaultDict(unittest.TestCase):
         else:
             self.fail("expected KeyError")
 
-    @unittest.skipIf(sys.platform == 'cli', 'Broken on ipy')
+    @unittest.skipIf(sys.platform == 'cli', 'StackOverflowException on ipy.')
     def test_recursive_repr(self):
         # Issue2045: stack overflow when default_factory is a bound method
         class sub(defaultdict):
@@ -162,17 +162,17 @@ class TestDefaultDict(unittest.TestCase):
         self.assertTrue(repr(d).startswith(
             "defaultdict(<bound method sub._factory of defaultdict(..."))
 
-            # NOTE: printing a subclass of a builtin type does not call its
-            # tp_print slot. So this part is essentially the same test as above.
-            tfn = tempfile.mktemp()
+        # NOTE: printing a subclass of a builtin type does not call its
+        # tp_print slot. So this part is essentially the same test as above.
+        tfn = tempfile.mktemp()
+        try:
+            f = open(tfn, "w+")
             try:
-                f = open(tfn, "w+")
-                try:
-                    print >>f, d
-                finally:
-                    f.close()
+                print >>f, d
             finally:
-                os.remove(tfn)
+                f.close()
+        finally:
+            os.remove(tfn)
 
 
 def test_main():

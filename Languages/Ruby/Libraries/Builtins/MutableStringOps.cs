@@ -2911,7 +2911,19 @@ namespace IronRuby.Builtins {
             self.Append("shin-asou");
             return self;
         }
-      
+
+        #endregion
+
+        #region try_convert
+
+        [RubyMethod("try_convert", RubyMethodAttributes.PublicSingleton)]
+        public static MutableString TryConvert(ConversionStorage<MutableString>/*!*/ stringTryCast, RubyClass/*!*/ self, object obj)
+        {
+            // TODO: if to_str returns a non-string (other than nil) MRI reports an error:
+            // can't convert C to String (C#to_str gives Fixnum) (TypeError)
+            return Protocols.TryCastToString(stringTryCast, obj);
+        }
+
         #endregion
 
         private static void RequireNoVersionChange(MutableString/*!*/ self) {
